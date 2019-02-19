@@ -610,6 +610,7 @@ class RXV(object):
         request_text = SelectNetRadioLine.format(lineno=lineno)
         return self._request('PUT', request_text, zone_cmd=False)
 
+    
     def net_radio(self, path):
         """Play net radio at the specified path.
 
@@ -628,19 +629,56 @@ class RXV(object):
         layers = path.split(">")
         self.input = "NET RADIO"
 
+        self._reset_menu(layers)
+
+        while True:
+            menu = self._get_menu()
+            if not menu.ready:
+                break
+
+            line_number = self._find_item_on_page(menu, layers[menu.layer - 1])
+            if line_number is not -1:
+                self._direct_sel(line_number)
+                if menu.layer == len(layers):
+                    #found final item, so break!
+                    break
+            elif not self._go_to_next_page(menu):
+                #item not found on this layer, on all pages
+                break
+
+    def _get_menu(self):
         for attempt in range(20):
             menu = self.menu_status()
             if menu.ready:
-                for line, value in menu.current_list.items():
-                    if value == layers[menu.layer - 1]:
-                        lineno = line[5:]
-                        self._direct_sel(lineno)
-                        if menu.layer == len(layers):
-                            return
-                        break
+                return menu
             else:
-                # print("Sleeping because we are not ready yet")
                 time.sleep(1)
+
+    def _find_item_on_page(self, menu, item):
+        for line, value in menu.current_list.items():
+            if value == item:
+                return line[5:]
+        return -1
+
+    def _go_to_next_page(self, menu):
+        #if item has not been found, check if there is a next page
+        next_line = menu.current_line + len(menu.current_list)
+        if next_line >= menu.max_line:
+            return False
+        self.menu_jump_line(next_line)
+        return True
+
+    def _reset_menu(self, layers):
+        menu = self.menu_status()
+        #Go back to the first layer
+        while menu.layer is not 1:
+            #break if the current layer is in our path on the same position
+            if menu.name == layers[menu.layer - 2]:
+                if menu.current_line != 1:
+                    self.menu_jump_line(1)
+                break
+            self.menu_return()
+            menu = self.menu_status()
 
     @property
     def sleep(self):
