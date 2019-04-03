@@ -635,14 +635,19 @@ class RXV(object):
             menu = self._get_menu()
             if not menu.ready:
                 break
+                
+            logger.debug(menu)
 
             line_number = self._find_item_on_page(menu, layers[menu.layer - 1])
+            logger.debug(line_number)
             if line_number is not -1:
                 self._direct_sel(line_number)
                 if menu.layer == len(layers):
+                    logger.debug("found")
                     #found final item, so break!
                     break
             elif not self._go_to_next_page(menu):
+                logger.debug("not in menu")
                 #item not found on this layer, on all pages
                 break
 
@@ -655,15 +660,19 @@ class RXV(object):
                 time.sleep(1)
 
     def _find_item_on_page(self, menu, item):
+        logger.debug("find item on page")
         for line, value in menu.current_list.items():
+            logger.warning(value+"=="+item)
             if value == item:
                 return line[5:]
         return -1
 
     def _go_to_next_page(self, menu):
+        logger.debug("check next page")
         #if item has not been found, check if there is a next page
         next_line = menu.current_line + len(menu.current_list)
-        if next_line >= menu.max_line:
+        if next_line > menu.max_line:
+            logger.debug("next line exceeds max lines")
             return False
         self.menu_jump_line(next_line)
         return True
